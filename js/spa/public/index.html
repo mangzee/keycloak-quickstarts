@@ -22,11 +22,13 @@
       <hr>
       <h2 id="name"></h2>
       <pre id="output"></pre>
+      <pre id="output-raw"></pre>
     </div>
     <script type="module">
       import Keycloak from "keycloak-js";
 
       const outputElement = document.getElementById("output");
+      const outputElementRaw = document.getElementById("output-raw");
       const nameElement = document.getElementById("name");
       const userElement = document.getElementById("user");
 
@@ -36,6 +38,10 @@
         }
 
         outputElement.textContent = content;
+      }
+
+      function outputraw(content) {
+        outputElementRaw.textContent = content;
       }
 
       function showProfile() {
@@ -59,6 +65,7 @@
         .getElementById("showAccessToken")
         .addEventListener("click", () => {
           output(keycloak.tokenParsed);
+          outputraw(keycloak.token);
         });
 
       document
@@ -66,6 +73,7 @@
         .addEventListener("click", async () => {
           await keycloak.updateToken(-1);
           output(keycloak.idTokenParsed);
+          outputraw(keycloak.idToken);
           showProfile();
         });
 
@@ -77,7 +85,7 @@
 
       const keycloak = new Keycloak({
         url: "https://keycloakdev.azurewebsites.net",
-        realm: "Keycloak-B2C-Integration",
+        realm: "Zensible-Therapist",
         clientId: "spa",
       });
 
