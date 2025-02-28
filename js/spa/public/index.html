@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Keycloak Single-Page Application Example</title>
+    <title>Keycloak SPA with Realm Selection</title>
     <script type="importmap">
       {
         "imports": {
@@ -13,6 +13,17 @@
     <link rel="modulepreload" href="/vendor/keycloak.js">
   </head>
   <body>
+    <!-- Realm selection UI -->
+    <div id="realm-selection">
+      <h2>Select a Realm</h2>
+      <select id="realm-select">
+        <option value="Zensible-Therapist">Zensible-Therapist</option>
+        <option value="Zensible-Client">Zensible-Client</option>
+      </select>
+      <button id="start-login" type="button">Login</button>
+    </div>
+
+    <!-- User information UI (hidden until login) -->
     <div id="user" style="display: none;">
       <button id="logout" type="button">Logout</button>
       <button id="showMyAccount" type="button">My Account</button>
@@ -24,6 +35,7 @@
       <pre id="output"></pre>
       <pre id="output-raw"></pre>
     </div>
+
     <script type="module">
       import Keycloak from "keycloak-js";
 
@@ -31,12 +43,14 @@
       const outputElementRaw = document.getElementById("output-raw");
       const nameElement = document.getElementById("name");
       const userElement = document.getElementById("user");
+      const realmSelectionElement = document.getElementById("realm-selection");
+
+      let keycloak = null;
 
       function output(content) {
         if (typeof content === "object") {
           content = JSON.stringify(content, null, 2);
         }
-
         outputElement.textContent = content;
       }
 
@@ -48,12 +62,14 @@
         const name =
           keycloak.idTokenParsed.name ||
           keycloak.idTokenParsed.preferred_username;
-
         nameElement.textContent = `Hello ${name}`;
         userElement.style.display = "block";
       }
 
+      // Button event listeners for user actions
       document.getElementById("logout").addEventListener("click", () => {
+        // Clear stored realm on logout if needed
+        localStorage.removeItem("selectedRealm");
         keycloak.logout();
       });
 
@@ -61,36 +77,52 @@
         output(keycloak.idTokenParsed);
       });
 
-      document
-        .getElementById("showAccessToken")
-        .addEventListener("click", () => {
-          output(keycloak.tokenParsed);
-          outputraw(keycloak.token);
-        });
-
-      document
-        .getElementById("refreshToken")
-        .addEventListener("click", async () => {
-          await keycloak.updateToken(-1);
-          output(keycloak.idTokenParsed);
-          outputraw(keycloak.idToken);
-          showProfile();
-        });
-
-      document
-        .getElementById("showMyAccount")
-        .addEventListener("click", async () => {
-          await keycloak.accountManagement()
-        });
-
-      const keycloak = new Keycloak({
-        url: "https://keycloakdev.azurewebsites.net",
-        realm: "Zensible-Therapist",
-        clientId: "spa",
+      document.getElementById("showAccessToken").addEventListener("click", () => {
+        output(keycloak.tokenParsed);
+        outputraw(keycloak.token);
       });
 
-      await keycloak.init({ onLoad: "login-required" });
-      showProfile();
+      document.getElementById("refreshToken").addEventListener("click", async () => {
+        await keycloak.updateToken(-1);
+        output(keycloak.idTokenParsed);
+        outputraw(keycloak.idToken);
+        showProfile();
+      });
+
+      document.getElementById("showMyAccount").addEventListener("click", async () => {
+        await keycloak.accountManagement();
+      });
+
+      async function initKeycloak(selectedRealm) {
+        keycloak = new Keycloak({
+          url: "https://keycloakdev.azurewebsites.net",
+          realm: selectedRealm,
+          clientId: "spa",
+        });
+
+        // Use "login-required" to force authentication if not already logged in.
+        const authenticated = await keycloak.init({ onLoad: "login-required" });
+        if (authenticated) {
+          showProfile();
+        } else {
+          console.log("User is not authenticated");
+        }
+      }
+
+      // Check if a realm has already been selected (and stored) on page load.
+      const storedRealm = localStorage.getItem("selectedRealm");
+      if (storedRealm) {
+        realmSelectionElement.style.display = "none";
+        initKeycloak(storedRealm);
+      } else {
+        // If no realm stored, wait for the user to choose one.
+        document.getElementById("start-login").addEventListener("click", () => {
+          const selectedRealm = document.getElementById("realm-select").value;
+          localStorage.setItem("selectedRealm", selectedRealm);
+          realmSelectionElement.style.display = "none";
+          initKeycloak(selectedRealm);
+        });
+      }
     </script>
   </body>
 </html>
